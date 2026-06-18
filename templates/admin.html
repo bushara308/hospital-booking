@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Panel - MediCare Plus{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <aside class="sidebar">
+        <h3 style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">Admin Panel</h3>
+        <nav class="sidebar-nav">
+            <a href="#" class="sidebar-link active">
+                <i class="fas fa-clipboard-list"></i> All Appointments
+            </a>
+            <!-- Could add more admin links like Manage Doctors, etc -->
+        </nav>
+    </aside>
+
+    <div class="dashboard-content">
+        <div id="adminAlert" class="alert"></div>
+
+        <section class="card">
+            <h2>Manage Appointments</h2>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Patient</th>
+                            <th>Contact</th>
+                            <th>Doctor</th>
+                            <th>Date & Time</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminAppointmentsList">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function loadAllAppointments() {
+    const result = await apiCall('/admin/appointments');
+    const tbody = document.getElementById('adminAppointmentsList');
+    
+    if (result.success) {
+        tbody.innerHTML = '';
+        if (result.data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No appointments found.</td></tr>';
+            return;
+        }
+        
+        result.data.forEach(appt => {
+            const statusClass = `badge-${appt.status.toLowerCase()}`;
+            const isPending = appt.status === 'Pending';
+            
+            let actionButtons = '-';
+            if (isPending) {
+                actionButtons = `
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button onclick="updateStatus(${appt.id}, 'Approved')" class="btn" style="background-color: #10b981; color: white; padding: 0.25rem 0.5rem; font-size: 0.8rem;"><i class="fas fa-check"></i> Approve</button>
+                        <button onclick="updateStatus(${appt.id}, 'Rejected')" class="btn" style="background-color: #ef4444; color: white; padding: 0.25rem 0.5rem; font-size: 0.8rem;"><i class="fas fa-times"></i> Reject</button>
+                    </div>
+                `;
+            }
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${appt.patient_name}</strong></td>
+                <td><i class="fas fa-phone" style="font-size: 0.8em; color: var(--text-muted);"></i> ${appt.patient_phone}</td>
+                <td>${appt.doctor_name}</td>
+                <td>
+                    <div>${formatDate(appt.appointment_date)}</div>
+                    <div style="color: var(--text-muted); font-size: 0.9em;">${appt.appointment_time}</div>
+                </td>
+                <td><span class="badge ${statusClass}">${appt.status}</span></td>
+                <td>${actionButtons}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } else {
+        showAlert('adminAlert', 'Failed to load appointments', 'error');
+    }
+}
+
+async function updateStatus(id, newStatus) {
+    if (!confirm(`Are you sure you want to mark this appointment as ${newStatus}?`)) return;
+    
+    const result = await apiCall(`/admin/appointments/${id}/status`, 'POST', { status: newStatus });
+    if (result.success) {
+        showAlert('adminAlert', `Appointment ${newStatus}`, 'success');
+        loadAllAppointments();
+    } else {
+        showAlert('adminAlert', result.error, 'error');
+    }
+}
+
+// Initial load
+document.addEventListener('DOMContentLoaded', () => {
+    loadAllAppointments();
+});
+</script>
+{% endblock %}

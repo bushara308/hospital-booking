@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block title %}Welcome to MediCare Plus{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="hero">
+        <div class="hero-content">
+            <h1>Healthcare at Your Fingertips</h1>
+            <p>Book appointments with top doctors instantly. Manage your medical schedule easily with our state-of-the-art platform.</p>
+            <div style="display: flex; gap: 1rem;">
+                <a href="/register" class="btn btn-primary" style="font-size: 1.1rem; padding: 0.75rem 1.5rem;">Get Started</a>
+                <a href="/login" class="btn btn-secondary" style="background-color: white; color: var(--primary-color); border: 1px solid var(--primary-color); font-size: 1.1rem; padding: 0.75rem 1.5rem;">Login</a>
+            </div>
+        </div>
+        <div class="hero-image">
+            <img src="https://images.unsplash.com/photo-1576091160550-2173ff9e5eb8?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80" alt="Hospital Team">
+        </div>
+    </div>
+</div>
+{% endblock %}

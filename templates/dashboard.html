@@ -1,0 +1,343 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - MediCare Plus{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <aside class="sidebar">
+        <h3 style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">Patient Panel</h3>
+        <nav class="sidebar-nav">
+            <a href="#" class="sidebar-link active" onclick="showSection('appointments')">
+                <i class="fas fa-calendar-check"></i> My Appointments
+            </a>
+            <a href="#" class="sidebar-link" onclick="showSection('book')">
+                <i class="fas fa-plus-circle"></i> Book Appointment
+            </a>
+        </nav>
+    </aside>
+
+    <div class="dashboard-content">
+        <div id="dashboardAlert" class="alert"></div>
+
+        <!-- My Appointments Section -->
+        <section id="appointments-section" class="card">
+            <h2 style="display: flex; justify-content: space-between; align-items: center;">
+                My Appointments
+                <button onclick="showSection('book')" class="btn btn-primary" style="font-size: 0.9rem;">
+                    <i class="fas fa-plus"></i> New
+                </button>
+            </h2>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Doctor</th>
+                            <th>Specialization</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="appointmentsList">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Book Appointment Section -->
+        <section id="book-section" class="card" style="display: none;">
+            <h2>Book New Appointment</h2>
+            <form id="bookForm" onsubmit="handleBookAppointment(event)" style="max-width: 600px;">
+                <div class="form-group">
+                    <label class="form-label" for="doctor">Select Doctor</label>
+                    <select id="doctor" class="form-control" required>
+                        <option value="">-- Choose a Doctor --</option>
+                        <!-- Loaded dynamically -->
+                    </select>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="date">Appointment Date</label>
+                        <input type="date" id="date" class="form-control" required min="">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="time">Appointment Time</label>
+                        <select id="time" class="form-control" required disabled>
+                            <option value="">-- Choose Date & Doctor First --</option>
+                        </select>
+                        <small style="color: var(--text-muted);">Office hours: 09:00 AM - 05:00 PM</small>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                    <button type="submit" class="btn btn-primary">Book Appointment</button>
+                    <button type="button" class="btn btn-secondary" style="background-color: white; color: var(--text-muted); border: 1px solid var(--border-color);" onclick="showSection('appointments')">Cancel</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Edit Appointment Section -->
+        <section id="edit-section" class="card" style="display: none;">
+            <h2>Edit Appointment</h2>
+            <form id="editForm" onsubmit="handleEditAppointment(event)" style="max-width: 600px;">
+                <input type="hidden" id="edit_appt_id">
+                <div class="form-group">
+                    <label class="form-label" for="edit_doctor">Select Doctor</label>
+                    <select id="edit_doctor" class="form-control" required>
+                        <option value="">-- Choose a Doctor --</option>
+                    </select>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="edit_date">Appointment Date</label>
+                        <input type="date" id="edit_date" class="form-control" required min="">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="edit_time">Appointment Time</label>
+                        <select id="edit_time" class="form-control" required disabled>
+                            <option value="">-- Choose Date & Doctor First --</option>
+                        </select>
+                        <small style="color: var(--text-muted);">Office hours: 09:00 AM - 05:00 PM</small>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                    <button type="submit" class="btn btn-primary">Update Appointment</button>
+                    <button type="button" class="btn btn-secondary" style="background-color: white; color: var(--text-muted); border: 1px solid var(--border-color);" onclick="showSection('appointments')">Cancel</button>
+                </div>
+            </form>
+        </section>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Set min date to today
+document.getElementById('date').min = new Date().toISOString().split('T')[0];
+document.getElementById('edit_date').min = new Date().toISOString().split('T')[0];
+
+function showSection(sectionId) {
+    document.querySelectorAll('.sidebar-link').forEach(link => link.classList.remove('active'));
+    
+    document.getElementById('appointments-section').style.display = 'none';
+    document.getElementById('book-section').style.display = 'none';
+    document.getElementById('edit-section').style.display = 'none';
+    
+    if (sectionId === 'appointments') {
+        document.getElementById('appointments-section').style.display = 'block';
+        document.querySelectorAll('.sidebar-link')[0].classList.add('active');
+        loadAppointments();
+    } else if (sectionId === 'book') {
+        document.getElementById('book-section').style.display = 'block';
+        document.querySelectorAll('.sidebar-link')[1].classList.add('active');
+        loadDoctors('doctor');
+    } else if (sectionId === 'edit') {
+        document.getElementById('edit-section').style.display = 'block';
+    }
+}
+
+async function loadAppointments() {
+    const result = await apiCall('/appointments');
+    const tbody = document.getElementById('appointmentsList');
+    
+    if (result.success) {
+        tbody.innerHTML = '';
+        if (result.data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No appointments found.</td></tr>';
+            return;
+        }
+        
+        result.data.forEach(appt => {
+            const statusClass = `badge-${appt.status.toLowerCase()}`;
+            
+            let canCancel = false;
+            if (appt.status !== 'Cancelled' && appt.status !== 'Rejected') {
+                const apptDateStr = appt.appointment_date + 'T' + appt.appointment_time;
+                const apptTime = new Date(apptDateStr).getTime();
+                const now = new Date().getTime();
+                if (apptTime - now > 24 * 60 * 60 * 1000) {
+                    canCancel = true;
+                }
+            }
+            
+            const isPending = appt.status === 'Pending';
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${appt.doctor_name}</strong></td>
+                <td>${appt.specialization}</td>
+                <td>${formatDate(appt.appointment_date)}</td>
+                <td>${appt.appointment_time}</td>
+                <td><span class="badge ${statusClass}">${appt.status}</span></td>
+                <td>
+                    ${isPending ? `<button onclick="openEditAppointment(${appt.id}, '${appt.doctor_id}', '${appt.appointment_date}', '${appt.appointment_time}')" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.5rem;">Edit</button>` : ''}
+                    ${canCancel ? `<button onclick="cancelAppointment(${appt.id})" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Cancel</button>` : (isPending ? '' : '-')}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } else {
+        showAlert('dashboardAlert', 'Failed to load appointments', 'error');
+    }
+}
+
+async function loadDoctors(selectId) {
+    const result = await apiCall('/doctors');
+    const select = document.getElementById(selectId);
+    
+    if (result.success) {
+        select.innerHTML = '<option value="">-- Choose a Doctor --</option>';
+        result.data.forEach(doc => {
+            select.innerHTML += `<option value="${doc.id}">${doc.name} - ${doc.specialization} (${doc.available_days})</option>`;
+        });
+    }
+}
+
+async function fetchSlots(docIdElem, dateElem, timeElem) {
+    const doctor_id = document.getElementById(docIdElem).value;
+    const date = document.getElementById(dateElem).value;
+    const timeSelect = document.getElementById(timeElem);
+    
+    if (!doctor_id || !date) {
+        timeSelect.innerHTML = '<option value="">-- Choose Date & Doctor First --</option>';
+        timeSelect.disabled = true;
+        return;
+    }
+    
+    timeSelect.innerHTML = '<option value="">Loading slots...</option>';
+    timeSelect.disabled = true;
+    
+    const result = await apiCall(`/doctors/${doctor_id}/slots?date=${date}`);
+    if (result.success) {
+        timeSelect.innerHTML = '<option value="">-- Select Time --</option>';
+        const data = result.data;
+        
+        data.all_slots.forEach(slot => {
+            const isBooked = data.booked_slots.includes(slot);
+            const option = document.createElement('option');
+            option.value = slot;
+            const displayTime = slot.substring(0, 5);
+            option.textContent = displayTime + (isBooked ? ' (Booked)' : '');
+            if (isBooked) {
+                option.disabled = true;
+                option.style.color = 'red';
+            }
+            timeSelect.appendChild(option);
+        });
+        timeSelect.disabled = false;
+    } else {
+        timeSelect.innerHTML = '<option value="">Error loading slots</option>';
+    }
+}
+
+document.getElementById('doctor').addEventListener('change', () => fetchSlots('doctor', 'date', 'time'));
+document.getElementById('date').addEventListener('change', () => fetchSlots('doctor', 'date', 'time'));
+
+document.getElementById('edit_doctor').addEventListener('change', () => fetchSlots('edit_doctor', 'edit_date', 'edit_time'));
+document.getElementById('edit_date').addEventListener('change', () => fetchSlots('edit_doctor', 'edit_date', 'edit_time'));
+
+async function openEditAppointment(id, doctor_id, date, time) {
+    showSection('edit');
+    await loadDoctors('edit_doctor');
+    
+    document.getElementById('edit_appt_id').value = id;
+    document.getElementById('edit_doctor').value = doctor_id;
+    document.getElementById('edit_date').value = date;
+    
+    await fetchSlots('edit_doctor', 'edit_date', 'edit_time');
+    
+    const timeSelect = document.getElementById('edit_time');
+    let found = false;
+    for (let i = 0; i < timeSelect.options.length; i++) {
+        if (timeSelect.options[i].value === time) {
+            timeSelect.options[i].disabled = false;
+            timeSelect.options[i].style.color = '';
+            timeSelect.options[i].textContent = timeSelect.options[i].value.substring(0, 5) + ' (Current)';
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        const option = document.createElement('option');
+        option.value = time;
+        option.textContent = time.substring(0, 5) + ' (Current)';
+        timeSelect.appendChild(option);
+    }
+    timeSelect.value = time;
+}
+
+async function handleEditAppointment(e) {
+    e.preventDefault();
+    const id = document.getElementById('edit_appt_id').value;
+    const doctor_id = document.getElementById('edit_doctor').value;
+    const appointment_date = document.getElementById('edit_date').value;
+    const appointment_time = document.getElementById('edit_time').value;
+    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+    
+    const result = await apiCall(`/appointments/${id}`, 'PUT', { doctor_id, appointment_date, appointment_time });
+    
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Update Appointment';
+    
+    if (result.success) {
+        showAlert('dashboardAlert', 'Appointment updated successfully!', 'success');
+        showSection('appointments');
+    } else {
+        showAlert('dashboardAlert', result.error, 'error');
+    }
+}
+
+async function handleBookAppointment(e) {
+    e.preventDefault();
+    const doctor_id = document.getElementById('doctor').value;
+    const appointment_date = document.getElementById('date').value;
+    const appointment_time = document.getElementById('time').value;
+    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Booking...';
+    
+    const result = await apiCall('/appointments', 'POST', { doctor_id, appointment_date, appointment_time });
+    
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Book Appointment';
+    
+    if (result.success) {
+        showAlert('dashboardAlert', 'Appointment booked successfully!', 'success');
+        e.target.reset();
+        setTimeout(() => {
+            showSection('appointments');
+        }, 1500);
+    } else {
+        showAlert('dashboardAlert', result.error, 'error');
+    }
+}
+
+async function cancelAppointment(id) {
+    if (!confirm('Are you sure you want to cancel this appointment?')) return;
+    
+    const result = await apiCall(`/appointments/${id}/cancel`, 'POST');
+    if (result.success) {
+        showAlert('dashboardAlert', 'Appointment cancelled', 'success');
+        loadAppointments();
+    } else {
+        showAlert('dashboardAlert', result.error, 'error');
+    }
+}
+
+// Initial load
+document.addEventListener('DOMContentLoaded', () => {
+    loadAppointments();
+});
+</script>
+{% endblock %}

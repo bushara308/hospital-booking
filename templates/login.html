@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Login - MediCare Plus{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h2>Welcome Back</h2>
+            <p style="color: var(--text-muted);">Log in to manage your appointments</p>
+        </div>
+        
+        <div id="loginAlert" class="alert"></div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label class="form-label" for="email">Email / Username</label>
+                <div style="position: relative;">
+                    <i class="fas fa-envelope" style="position: absolute; left: 12px; top: 14px; color: #9ca3af;"></i>
+                    <input type="text" id="email" class="form-control" style="padding-left: 2.5rem;" required placeholder="Enter email">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <div style="position: relative;">
+                    <i class="fas fa-lock" style="position: absolute; left: 12px; top: 14px; color: #9ca3af;"></i>
+                    <input type="password" id="password" class="form-control" style="padding-left: 2.5rem;" required placeholder="Enter password">
+                </div>
+            </div>
+
+            <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem;">
+                <input type="checkbox" id="isAdmin">
+                <label for="isAdmin" style="color: var(--text-muted); cursor: pointer;">I am an Admin</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; font-size: 1rem;">Login</button>
+            
+            <p style="text-align: center; margin-top: 1.5rem; color: var(--text-muted);">
+                Don't have an account? <a href="/register">Register here</a>
+            </p>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const isAdmin = document.getElementById('isAdmin').checked;
+    
+    const role = isAdmin ? 'admin' : 'patient';
+    
+    const submitBtn = e.target.querySelector('button');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
+
+    const result = await apiCall('/login', 'POST', { email, password, role });
+    
+    if (result.success) {
+        showAlert('loginAlert', result.data.message, 'success');
+        setTimeout(() => {
+            window.location.href = result.data.redirect;
+        }, 1000);
+    } else {
+        showAlert('loginAlert', result.error, 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Login';
+    }
+}
+</script>
+{% endblock %}
