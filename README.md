@@ -76,7 +76,7 @@ We check `response.ok` in JS. If the server returns a 400 or 500 error, we catch
 
 ---
 
-## 🔒 Security Concepts (For Extra Marks 💯)
+## 🔒 Security Concepts 
 
 This project implements several industry-standard security practices to impress your evaluators:
 
